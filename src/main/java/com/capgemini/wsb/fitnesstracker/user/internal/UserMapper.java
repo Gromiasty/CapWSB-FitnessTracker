@@ -27,4 +27,8 @@ class UserMapper {
                                  user.getFirstName(),
                                  user.getLastName());
     }
+
+    UserEmailMapper userToEmail (User user) {
+        return new UserEmailMapper (null, user.getEmail());
+    }
 }
