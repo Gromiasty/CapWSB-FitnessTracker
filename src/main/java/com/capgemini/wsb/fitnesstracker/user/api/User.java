@@ -5,12 +5,14 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
+@Setter
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString
@@ -46,3 +48,4 @@ public class User {
     }
 
 }
+
