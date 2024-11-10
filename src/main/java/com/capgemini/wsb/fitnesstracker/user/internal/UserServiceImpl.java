@@ -68,6 +68,16 @@ class UserServiceImpl implements UserService, UserProvider {
         userRepository.deleteById(userId);
     }
 
+    @Override
+    public User updateUser(final User user) {
+        
+        log.info("User {} updated", user);
+        if (user.getId() == null) {
+            throw new IllegalArgumentException("Update is not possible.");
+        }
+        return userRepository.save(user);
+    }
+
     
 
     }

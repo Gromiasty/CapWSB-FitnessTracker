@@ -91,4 +91,12 @@ class UserController {
         .toList();
     }
 
+    @PutMapping("/{id}")
+    public User updateUser(@PathVariable Long id, @RequestBody UserDto userDto) {
+        User chooseUser = userService.getUser(id).orElseThrow(() -> new IllegalArgumentException("User " + id + "not found"));
+        User updateUserData = userMapper.updateChosenUser(chooseUser, userDto);
+
+        return userService.updateUser(updateUserData);
+    }
+
 }
