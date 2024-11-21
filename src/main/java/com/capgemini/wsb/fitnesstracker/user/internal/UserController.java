@@ -1,16 +1,16 @@
 package com.capgemini.wsb.fitnesstracker.user.internal;
 
-import com.capgemini.wsb.fitnesstracker.user.api.User;
-import com.capgemini.wsb.fitnesstracker.user.api.UserDto;
-import com.capgemini.wsb.fitnesstracker.user.api.UserSimpleDto;
-import com.capgemini.wsb.fitnesstracker.user.api.UserNotFoundException;
-import com.capgemini.wsb.fitnesstracker.user.api.UserService;
+import com.capgemini.wsb.fitnesstracker.user.api.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.ResponseEntity.ok;
 
 @RestController
 @RequestMapping("/v1/users")
@@ -18,68 +18,79 @@ import java.util.List;
 class UserController {
 
     private final UserService userService;
+    private final UserProvider userProvider;
     private final UserMapper userMapper;
 
     @GetMapping
     public List<UserDto> getAllUsers() {
-        return userService.findAllUsers()
-                .stream()
-                .map(userMapper::toDto)
-                .toList();
+        return userProvider.findAllUsers()
+                          .stream()
+                          .map(userMapper::toDto)
+                          .toList();
     }
 
     @GetMapping("/simple")
     public List<UserSimpleDto> getAllSimpleUsers() {
-        return userService.findAllUsers()
+        return userProvider.findAllUsers()
                 .stream()
                 .map(userMapper::toSimpleDto)
                 .toList();
     }
 
-    @GetMapping("/{id}")
-    public UserDto getUserById(@PathVariable Long id) {
-        User user = userService.getUser(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
-        return userMapper.toDto(user);
-    }
-
-    @GetMapping("/email")
-    public List<UserDto> getUserByEmail(@RequestParam String email) {
-        return userService.findUsersByEmailFragment(email)
+    @GetMapping("/details")
+    public List<UserDetailsDto> getAllDetailedUsers() {
+        return userProvider.findAllUsers()
                 .stream()
-                .map(user -> new UserDto(user.getId(), user.getFirstName(), user.getLastName(), user.getBirthdate(), user.getEmail()))
+                .map(userMapper::toDetailsDto)
                 .toList();
     }
 
-    @GetMapping("/older/{time}")
-    public List<UserDto> getUsersOlderThan(@PathVariable String time) {
-        LocalDate date = LocalDate.parse(time);
-        return userService.findUsersOlderThan(date)
-                .stream()
+    @GetMapping("/email")
+    public ResponseEntity<UserDto> getUserByEmail(@RequestParam String email) {
+        return userProvider.findUserByEmail(email)
+                .map(user -> ok(userMapper.toDto(user)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserDto> getUserByEmail(@PathVariable Long userId) {
+        return userProvider.findUser(userId)
+                .map(user -> ok(userMapper.toDto(user)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    @ResponseStatus(CREATED)
+    public User addUser(@RequestBody UserDto userDto) {
+        System.out.println("User with e-mail: " + userDto.email() + "passed to the request");
+
+        return userService.createUser(userMapper.toEntity(userDto));
+    }
+
+    @DeleteMapping("/{userId}")
+    @ResponseStatus(NO_CONTENT)
+    public void deleteUser(@PathVariable Long userId) {
+        userService.deleteUserById(userId);
+    }
+
+    @GetMapping("/search")
+    public List<UserIdEmailDto> searchUsersByEmail(String emailPart) {
+        return userProvider.findUsersByEmailPart(emailPart).stream()
+                .map(userMapper::toUserIdEmailDto)
+                .toList();
+    }
+
+    @GetMapping("/older/{date}")
+    public List<UserDto> findUsersBornBefore(@PathVariable LocalDate date) {
+        return userProvider.findUsersBornBefore(date).stream()
                 .map(userMapper::toDto)
                 .toList();
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public UserDto addUser(@RequestBody UserDto userDto) {
-        User user = userMapper.toEntity(userDto);
-        return userMapper.toDto(userService.createUser(user));
-    }
-
     @PutMapping("/{userId}")
-    public UserDto updateUser(@PathVariable Long userId, @RequestBody UserDto userDto) {
-        User user = userMapper.toEntity(userDto);
-        return userMapper.toDto(userService.updateUser(userId, user));
-    }
-
-    @DeleteMapping("/{userId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@PathVariable Long userId) {
-        try {
-            userService.deleteUser(userId);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Cannot delete user with ID: " + userId + " due to error: " + e.getMessage());
-        }
+    public ResponseEntity<User> updateUser(@PathVariable Long userId, @RequestBody UserUpdateDto userUpdateDto) {
+        return userService.updateUser(userId, userUpdateDto)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

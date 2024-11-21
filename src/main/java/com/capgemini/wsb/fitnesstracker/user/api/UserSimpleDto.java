@@ -1,5 +1,5 @@
-
 package com.capgemini.wsb.fitnesstracker.user.api;
 
-public record UserSimpleDto(Long id, String firstName, String lastName) {
-}
+import jakarta.annotation.Nullable;
+
+public record UserSimpleDto(@Nullable Long id, String firstName, String lastName) { }
