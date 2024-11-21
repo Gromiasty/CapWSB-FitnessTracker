@@ -1,10 +1,11 @@
 package com.capgemini.wsb.fitnesstracker.user.internal;
 
 import com.capgemini.wsb.fitnesstracker.user.api.User;
+import com.capgemini.wsb.fitnesstracker.user.api.UserDto;
+import com.capgemini.wsb.fitnesstracker.user.api.UserSimpleDto;
+import com.capgemini.wsb.fitnesstracker.user.api.UserNotFoundException;
+import com.capgemini.wsb.fitnesstracker.user.api.UserService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
-import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,87 +17,69 @@ import java.util.List;
 @RequiredArgsConstructor
 class UserController {
 
-    private final UserServiceImpl userService;
-
+    private final UserService userService;
     private final UserMapper userMapper;
 
     @GetMapping
     public List<UserDto> getAllUsers() {
         return userService.findAllUsers()
-                          .stream()
-                          .map(userMapper::toDto)
-                          .toList();
+                .stream()
+                .map(userMapper::toDto)
+                .toList();
     }
 
     @GetMapping("/simple")
-    public List<UserSimpleDto> getAllBasicInformationAboutUsers(){
+    public List<UserSimpleDto> getAllSimpleUsers() {
         return userService.findAllUsers()
-                          .stream()
-                          .map(userMapper::toSimpleDto)
-                          .toList();
+                .stream()
+                .map(userMapper::toSimpleDto)
+                .toList();
+    }
+
+    @GetMapping("/{id}")
+    public UserDto getUserById(@PathVariable Long id) {
+        User user = userService.getUser(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        return userMapper.toDto(user);
     }
 
     @GetMapping("/email")
-    public List<UserEmailMapper> getUsersByEmailCases(@RequestParam String email) {
-        return userService.findUsersByEmail(email)
-        .stream()
-        .map(userMapper::userToEmail)
-        .toList();
+    public List<UserDto> getUserByEmail(@RequestParam String email) {
+        return userService.findUsersByEmailFragment(email)
+                .stream()
+                .map(user -> new UserDto(user.getId(), user.getFirstName(), user.getLastName(), user.getBirthdate(), user.getEmail()))
+                .toList();
     }
 
-   /*   @GetMapping("/{userId}")
-    public UserDto getUser(@PathVariable Long userId) {
-        return userService.getUser(userId)
-                          .map(userMapper::toDto)
-                          .orElseThrow(() -> new IllegalArgumentException("User with ID: " + userId + " not found"));
-    } */
-
-    @GetMapping("/{value}")
-    public UserDto getUser(@PathVariable String value) {
-        if (userService.getUserByEmail(value).isPresent()) {
-                return userService.getUserByEmail(value)
+    @GetMapping("/older/{time}")
+    public List<UserDto> getUsersOlderThan(@PathVariable String time) {
+        LocalDate date = LocalDate.parse(time);
+        return userService.findUsersOlderThan(date)
+                .stream()
                 .map(userMapper::toDto)
-                .orElseThrow(RuntimeException::new);
-            } else {
-        return userService.getUser(Long.parseLong(value))
-                          .map(userMapper::toDto)
-                          .orElseThrow(RuntimeException::new/*() -> new IllegalArgumentException("User with ID: " + userId + " not found")*/);
-            }
+                .toList();
     }
 
-    
-    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
-    public User addUser(@RequestBody UserDto userDto) throws InterruptedException {
-
-        // Demonstracja how to use @RequestBody
-        System.out.println("User with e-mail: " + userDto.email() + "passed to the request");
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserDto addUser(@RequestBody UserDto userDto) {
         User user = userMapper.toEntity(userDto);
+        return userMapper.toDto(userService.createUser(user));
+    }
 
-        // TODO: saveUser with Service and return User
-         return userService.createUser(user);
+    @PutMapping("/{userId}")
+    public UserDto updateUser(@PathVariable Long userId, @RequestBody UserDto userDto) {
+        User user = userMapper.toEntity(userDto);
+        return userMapper.toDto(userService.updateUser(userId, user));
     }
 
     @DeleteMapping("/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long userId) {
+        try {
             userService.deleteUser(userId);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Cannot delete user with ID: " + userId + " due to error: " + e.getMessage());
+        }
     }
-
-    @GetMapping("/older/{time}")
-    public List<UserDto> getUsersOlderThan(@PathVariable LocalDate time) {
-        return userService.getOlderThan(time)
-        .stream()
-        .map(userMapper::toDto)
-        .toList();
-    }
-
-    @PutMapping("/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody UserDto userDto) {
-        User chooseUser = userService.getUser(id).orElseThrow(() -> new IllegalArgumentException("User " + id + "not found"));
-        User updateUserData = userMapper.updateChosenUser(chooseUser, userDto);
-
-        return userService.updateUser(updateUserData);
-    }
-
 }

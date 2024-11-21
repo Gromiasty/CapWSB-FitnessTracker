@@ -3,6 +3,7 @@ package com.capgemini.wsb.fitnesstracker.user.internal;
 import com.capgemini.wsb.fitnesstracker.user.api.User;
 import com.capgemini.wsb.fitnesstracker.user.api.UserProvider;
 import com.capgemini.wsb.fitnesstracker.user.api.UserService;
+import com.capgemini.wsb.fitnesstracker.user.api.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,28 +40,14 @@ class UserServiceImpl implements UserService, UserProvider {
     }
 
     @Override
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
-    }
-
-    @Override
-    public Optional<User> getUserFirstName(final String firstName) {
-        return userRepository.findByFirstName(firstName);
-    }
-
-    @Override
-    public Optional<User> getUserLastName(final String lastName) {
-        return userRepository.findByLastName(lastName);
-    }
-
-    @Override
-    public List<User> findUsersByEmail(final String email) {
-        return userRepository.findUsersByEmailNoCases(email);
-    }
-
-    @Override
-    public List<User> getOlderThan(LocalDate date) {
-        return userRepository.findOlder(date);
+    public User updateUser(Long id, User user) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        existingUser.setFirstName(user.getFirstName());
+        existingUser.setLastName(user.getLastName());
+        existingUser.setEmail(user.getEmail());
+        existingUser.setBirthdate(user.getBirthdate());
+        return userRepository.save(existingUser);
     }
 
     @Override
@@ -69,15 +57,21 @@ class UserServiceImpl implements UserService, UserProvider {
     }
 
     @Override
-    public User updateUser(final User user) {
-        
-        log.info("User {} updated", user);
-        if (user.getId() == null) {
-            throw new IllegalArgumentException("Update is not possible.");
-        }
-        return userRepository.save(user);
+    public List<User> findAllUsers() {
+        return userRepository.findAllByIsActiveTrue();
     }
 
-    
-
+    @Override
+    public List<User> findUsersByEmailFragment(String emailFragment) {
+        return userRepository.findAllByIsActiveTrue().stream()
+                .filter(user -> user.getEmail().toLowerCase().contains(emailFragment.toLowerCase()))
+                .collect(Collectors.toList());
     }
+
+    @Override
+    public List<User> findUsersOlderThan(LocalDate cutoffDate) {
+        return userRepository.findAllByIsActiveTrue().stream()
+                .filter(user -> user.getBirthdate().isBefore(cutoffDate))
+                .collect(Collectors.toList());
+    }
+}
