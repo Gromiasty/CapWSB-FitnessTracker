@@ -49,4 +49,6 @@ public interface UserProvider {
      * @return a list of {@link User} entities born before the specified date
      */
     List<User> findUsersBornBefore(LocalDate date);
+
+    
 }

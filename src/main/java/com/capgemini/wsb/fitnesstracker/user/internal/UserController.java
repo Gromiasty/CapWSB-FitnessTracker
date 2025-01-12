@@ -37,19 +37,18 @@ class UserController {
                 .toList();
     }
 
+    @GetMapping("/email")
+    public ResponseEntity<UserDto> getUserByEmail(@RequestParam String email) {
+        return userProvider.findUserByEmail(email)
+                .map(user -> ok(userMapper.toDto(user)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
     @GetMapping("/details")
     public List<UserDetailsDto> getAllDetailedUsers() {
         return userProvider.findAllUsers()
                 .stream()
                 .map(userMapper::toDetailsDto)
                 .toList();
-    }
-
-    @GetMapping("/email")
-    public ResponseEntity<UserDto> getUserByEmail(@RequestParam String email) {
-        return userProvider.findUserByEmail(email)
-                .map(user -> ok(userMapper.toDto(user)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{userId}")
@@ -73,6 +72,13 @@ class UserController {
         userService.deleteUserById(userId);
     }
 
+    @PutMapping("/{userId}")
+    public ResponseEntity<User> updateUser(@PathVariable Long userId, @RequestBody UserUpdateDto userUpdateDto) {
+        return userService.updateUser(userId, userUpdateDto)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/search")
     public List<UserIdEmailDto> searchUsersByEmail(String emailPart) {
         return userProvider.findUsersByEmailPart(emailPart).stream()
@@ -87,10 +93,5 @@ class UserController {
                 .toList();
     }
 
-    @PutMapping("/{userId}")
-    public ResponseEntity<User> updateUser(@PathVariable Long userId, @RequestBody UserUpdateDto userUpdateDto) {
-        return userService.updateUser(userId, userUpdateDto)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
+
 }

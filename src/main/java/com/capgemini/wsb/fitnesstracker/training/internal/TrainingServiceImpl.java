@@ -10,6 +10,7 @@ import com.capgemini.wsb.fitnesstracker.user.internal.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,35 +26,68 @@ class TrainingServiceImpl implements TrainingProvider, TrainingService {
 
     @Override
     public Optional<Training> getTraining(final Long trainingId) {
-        throw new UnsupportedOperationException("Not finished yet");
+        log.info("Fetching training with ID: {}", trainingId);
+        return trainingRepository.findById(trainingId)
+                .or(() -> {
+                    log.warn("Training with ID {} not found", trainingId);
+                    return Optional.empty();
+                });
     }
 
     @Override
     public List<Training> getAllTrainings() {
+        log.info("Fetching all trainings");
         return trainingRepository.findAll();
     }
 
     @Override
     public List<Training> getTrainingsByUserId(Long userId) {
+        log.info("Fetching trainings for user ID: {}", userId);
         return trainingRepository.findByUserId(userId);
     }
 
     @Override
     public List<Training> getCompletedTrainingsAfter(LocalDate date) {
+        log.info("Fetching completed trainings after: {}", date);
         return trainingRepository.findByEndTimeAfter(date.atStartOfDay());
     }
 
     @Override
     public List<Training> getTrainingsByActivityType(ActivityType activityType) {
+        log.info("Fetching trainings with activity type: {}", activityType);
         return trainingRepository.findByActivityType(activityType);
     }
 
+    @Transactional
     @Override
-    public Training createTraining(TrainingUpdateDto training) {
-        User user = userRepository.findById(training.getUserId())
-                .orElseThrow(() -> new UserNotFoundException(training.getUserId()));
+    public Training createTraining(TrainingUpdate training) {
+        log.info("Creating new training for user ID: {}", training.getUserId());
+        User user = getUserById(training.getUserId());
 
-        Training newTraining = new Training(
+        Training newTraining = buildTrainingFromUpdate(user, training);
+        return trainingRepository.save(newTraining);
+    }
+
+    @Transactional
+    @Override
+    public Training updateTraining(Long id, TrainingUpdate training) {
+        log.info("Updating training with ID: {}", id);
+        return trainingRepository.findById(id)
+                .map(existingTraining -> {
+                    User user = getUserById(training.getUserId());
+                    updateTrainingDetails(existingTraining, user, training);
+                    return trainingRepository.save(existingTraining);
+                })
+                .orElseThrow(() -> new TrainingNotFoundException(id));
+    }
+
+    private User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+    }
+
+    private Training buildTrainingFromUpdate(User user, TrainingUpdate training) {
+        return new Training(
                 user,
                 training.getStartTime(),
                 training.getEndTime(),
@@ -61,25 +95,14 @@ class TrainingServiceImpl implements TrainingProvider, TrainingService {
                 training.getDistance(),
                 training.getAverageSpeed()
         );
-        return trainingRepository.save(newTraining);
     }
 
-    @Override
-    public Training updateTraining(Long id, TrainingUpdateDto training) {
-        return trainingRepository.findById(id)
-                .map(existingTraining -> {
-
-                    User user = userRepository.findById(training.getUserId())
-                            .orElseThrow(() -> new UserNotFoundException(training.getUserId()));
-
-                    existingTraining.setUser(user);
-                    existingTraining.setStartTime(training.getStartTime());
-                    existingTraining.setEndTime(training.getEndTime());
-                    existingTraining.setActivityType(ActivityType.valueOf(training.getActivityType()));
-                    existingTraining.setDistance(training.getDistance());
-                    existingTraining.setAverageSpeed(training.getAverageSpeed());
-                    return trainingRepository.save(existingTraining);
-                })
-                .orElseThrow(() -> new TrainingNotFoundException(id));
+    private void updateTrainingDetails(Training existingTraining, User user, TrainingUpdate training) {
+        existingTraining.setUser(user);
+        existingTraining.setStartTime(training.getStartTime());
+        existingTraining.setEndTime(training.getEndTime());
+        existingTraining.setActivityType(ActivityType.valueOf(training.getActivityType()));
+        existingTraining.setDistance(training.getDistance());
+        existingTraining.setAverageSpeed(training.getAverageSpeed());
     }
 }

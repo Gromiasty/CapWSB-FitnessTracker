@@ -1,26 +1,14 @@
 package com.capgemini.wsb.fitnesstracker.statistics.api;
 
-import jakarta.persistence.*;
 /**
- * Entity representing user statistics.
+ * Data Transfer Object for Statistics.
  */
-@Entity
-public class Statistics {
+public class StatisticsDTO {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false)
     private Long userId;
-
-    @Column(nullable = false)
     private int calories;
-
-    @Column(nullable = false)
     private int steps;
-
-    @Column(nullable = false)
     private int distance;
 
     // Getters and setters

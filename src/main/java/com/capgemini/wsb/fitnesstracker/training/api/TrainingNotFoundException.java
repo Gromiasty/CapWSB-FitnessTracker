@@ -13,7 +13,7 @@ public class TrainingNotFoundException extends NotFoundException {
     }
 
     public TrainingNotFoundException(Long id) {
-        this("Training with ID=%s was not found".formatted(id));
+        this("Training with ID=%s was not found in the database".formatted(id));
     }
 
 }
